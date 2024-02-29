@@ -1,0 +1,56 @@
+job_id_regexp: "Job Id:(\\d+)"
+cmd: "sbatch {sbatch_script}"
+check_interval_secs: 600
+partition: booster
+account: laionize
+experiments:
+  small:
+    model_scale:
+        model: [ViT-B-32]
+    samples_seen_scale:        
+        - 1.28M:
+            nodes: 16
+            train_num_samples: 128_000
+            epochs: 10
+            warmup: 100
+            lr: [5e-4, 1e-3]
+            batch_size: 1024
+            beta1: 0.9
+            beta2: 0.95
+            wd: 0.2
+            grad_clip_norm: 1
+        - 12.8M:
+            nodes: 16
+            train_num_samples: 1_280_000
+            epochs: 10
+            warmup: 100
+            lr: [5e-4, 1e-3]
+            batch_size: 1024
+            beta1: 0.9
+            beta2: 0.95
+            wd: 0.2
+            grad_clip_norm: 1
+mode:
+  - train:
+      template: train.sbatch
+      sbatch_script: "sbatch_scripts/{name}_train.sbatch"
+      output_file: "{logs}/{name}/slurm_train.out"
+      nodes: 24
+      # terminate training if we detect that last epoch is finished
+      # e.g. if number of epochs is 100 and we find the expression Train Epoch: 99 .... 100%, we return 1
+      # thus terminating the job.
+      termination_cmd: 'let last={epochs}-1;grep "Train Epoch: $last.*100%" {output_file}|wc -l'
+  - eval:
+      template: eval.sbatch
+      sbatch_script: "sbatch_scripts/{name}_eval.sbatch"
+      output_file: "{logs}/{name}/slurm_eval.out"
+      nodes: 1
+      # evals have starting condition, they are only launched if  number of checkpoints is greater than number of evaluations (json result files)
+      start_condition_cmd: "nc=`ls {logs}/{name}/checkpoints/*.pt|wc -l`;ne=`ls {logs}/{name}/checkpoints/imagenet1k*.json|wc -l`;echo $(( (nc-ne) > 0 ))"
+      # we only terminate evals when number of evals is equal to number of epochs
+      termination_cmd: "ne=`ls {logs}/{name}/checkpoints/imagenet1k*.json|wc -l`;echo $(( (ne) == {epochs}+1 ))"
+dataset: 
+    - datacomp:
+        train_data: "/p/fastdata/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
+logs: "logs"
+name: "{dataset}_{model}_{samples_seen_scale}_lr{lr}_bs{batch_size}"
