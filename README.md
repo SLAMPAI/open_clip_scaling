@@ -28,3 +28,7 @@ Check the sbatch scripts:
 Then, run everything:
 
 `autoexperiment run config.yaml`
+
+Or, run a specific scale(s):
+
+`autoexperiment run config.yaml samples_seen_scale=12.8M,128M`
