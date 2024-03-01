@@ -1,6 +1,6 @@
 #!/bin/bash -x
 #SBATCH --account={account}
-#SBATCH --nodes={nodes}
+#SBATCH --nodes={eval_nodes}
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=12
