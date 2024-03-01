@@ -18,12 +18,18 @@ master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr"i"
 echo "MASTER_ADDR="$MASTER_ADDR
 export PYTHONPATH="$PYTHONPATH:$PWD/open_clip/src"
+# if siglip is true, "--siglip", else ""
+if [ "{siglip}" = "True" ]; then
+    SIGLIP="--siglip"
+else
+    SIGLIP=""
+fi
 srun --cpu_bind=none,v --accel-bind=gn python -u open_clip/src/training/main.py \
     --save-frequency 1 \
     --zeroshot-frequency 1 \
     --train-data="{train_data}"  --dataset-type webdataset --dataset-resampled\
     --train-num-samples={train_num_samples} \
-    --batch-size {batch_size} \
+    --batch-size {batch_size} $SIGLIP\
     --report-to=tensorboard \
     --epochs {epochs} \
     --workers=8 \

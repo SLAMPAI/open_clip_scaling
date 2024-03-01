@@ -1,11 +1,11 @@
 #!/bin/bash -x
-#SBATCH --account=laionize
+#SBATCH --account={account}
 #SBATCH --nodes={nodes}
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=12
 #SBATCH --time=02:00:00
-#SBATCH --partition=booster
+#SBATCH --partition={partition}
 #SBATCH --output={output_file}
 echo "Job Id:$SLURM_JOB_ID"
 ml purge
