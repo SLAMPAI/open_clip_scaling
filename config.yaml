@@ -83,9 +83,9 @@ mode:
       output_file: "{logs}/{name}/slurm_eval.out"
       eval_nodes: 1
       # evals have starting condition, they are only launched if  number of checkpoints is greater than number of evaluations (json result files)
-      start_condition_cmd: "nc=`ls {logs}/{name}/checkpoints/*.pt|wc -l`;ne=`ls {logs}/{name}/checkpoints/imagenet1k*.json|wc -l`;echo $(( (nc-ne) > 0 ))"
+      start_condition_cmd: "nc=`ls {logs}/{name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
       # we only terminate evals when number of evals is equal to number of epochs
-      termination_cmd: "ne=`ls {logs}/{name}/checkpoints/imagenet1k*.json|wc -l`;echo $(( (ne) == {epochs}+1 ))"
+      termination_cmd: "ne=`ls {logs}/{name}/checkpoints/*.json|wc -l`;echo $(( (ne) == {epochs}*2 ))" # num of jsons = (num epochs) * (imagenet + coco = 2)
 dataset: 
     - datacomp:
         train_data: "/p/fastdata/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
