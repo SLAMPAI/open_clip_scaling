@@ -11,15 +11,15 @@ experiments:
   small:
     model_scale:
         model: [ViT-B-32]
-    samples_seen_scale:        
+    samples_seen_scale:
         - 1.28M:
-            nodes: 16
-            train_num_samples: 128_000
-            epochs: 10
-            warmup: 10
-            lr: [5e-4, 1e-3]
-            batch_size: 32
-            siglip: [true, false]
+                nodes: 16
+                train_num_samples: 128_000
+                epochs: 10
+                warmup: 10
+                lr: [5e-5, 5e-4, 1e-4, 1e-3]
+                batch_size: [2, 4, 8, 16, 32]
+                siglip: [true, false]
         - 12.8M:
             nodes: 16
             train_num_samples: 1_280_000
