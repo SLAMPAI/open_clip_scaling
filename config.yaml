@@ -91,3 +91,4 @@ dataset:
         train_data: "/p/fastdata/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
 logs: "logs"
 name: "{dataset}_s{samples_seen_scale}_{model}_ep{epochs}_lr{lr}_b1_{beta1}_b2_{beta2}_wd{wd}_w{warmup}_gc{grad_clip_norm}_n{nodes}_bs{batch_size}_sig{siglip}"
+full_name: "{name}_{mode}"

@@ -7,6 +7,7 @@
 #SBATCH --time=02:00:00
 #SBATCH --partition={partition}
 #SBATCH --output={output_file}
+#SBATCH --name={full_name}
 echo "Job Id:$SLURM_JOB_ID"
 ml purge
 source /p/project/ccstdl/laion/mamba/bin/activate experimental-torch-nightly
