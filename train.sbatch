@@ -4,10 +4,10 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=24
-#SBATCH --time=06:00:00
+#SBATCH --time={time_minutes}
 #SBATCH --partition={partition}
 #SBATCH --output={output_file}
-#SBATCH --name={full_name}
+#SBATCH --job-name={full_name}
 echo "Job Id:$SLURM_JOB_ID"
 ml purge
 export TRANSFORMERS_CACHE=cache
@@ -35,7 +35,7 @@ srun --cpu_bind=none,v --accel-bind=gn python -u open_clip/src/training/main.py 
     --epochs {epochs} \
     --workers=8 \
     --model {model}\
-    --name {name} \
+    --name {folder_name} \
     --logs {logs} \
     --seed 0 \
     --local-loss \
@@ -50,4 +50,8 @@ srun --cpu_bind=none,v --accel-bind=gn python -u open_clip/src/training/main.py 
     --ddp-static-graph \
     --precision amp_bfloat16 \
     --grad-checkpoint \
-    --resume latest
+    --lr-scheduler {lr_scheduler} \
+    --lr-cooldown-end {lr_cooldown_end} \
+    --lr-cooldown-power {lr_cooldown_power} \
+    --epochs-cooldown {epochs_cooldown} \
+    --resume {resume}
