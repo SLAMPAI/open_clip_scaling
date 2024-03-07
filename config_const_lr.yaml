@@ -26,21 +26,22 @@ phase:
         lr_cooldown_power: 1.0
         epochs_cooldown: 0
         resume: latest
-        folder_name: "{name}"
+        folder_name: "{exp_name}"
         epochs: "{max_epochs}"
+        phase_params: ""
         mode:
             - train:
                 template: train.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{name}_train.sbatch"
-                output_file: "{logs}/{name}/slurm_train.out"
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_train.sbatch"
+                output_file: "{logs}/{exp_name}/slurm_train.out"
                 termination_cmd: 'let last={epochs}-1;grep "Train Epoch: $last.*100%" {output_file}|wc -l'
             - eval:
                 template: eval.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{name}_eval.sbatch"
-                output_file: "{logs}/{name}/slurm_eval.out"
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_eval.sbatch"
+                output_file: "{logs}/{exp_name}/slurm_eval.out"
                 eval_nodes: 1
-                start_condition_cmd: "nc=`ls {logs}/{name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
-                termination_cmd: "ne=`ls {logs}/{name}/checkpoints/*.json|wc -l`;echo $(( (ne) == {epochs}*2 ))" # num of jsons = (num epochs) * (imagenet + coco = 2)
+                start_condition_cmd: "nc=`ls {logs}/{exp_name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{exp_name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
+                termination_cmd: "ne=`ls {logs}/{exp_name}/checkpoints/*.json|wc -l`;echo $(( (ne) == {epochs}*2 ))" # num of jsons = (num epochs) * (imagenet + coco = 2)
     - cooldown:
         lr_scheduler: const-cooldown
         lr_cooldown_end: 0.0
@@ -49,18 +50,19 @@ phase:
         #cooldown_checkpoint: "eval(list(range(10,100,10)))"
         cooldown_checkpoint: [10, 20, 30, 40, 50, 60, 70, 80, 90]
         epochs: "$(({cooldown_checkpoint}+{epochs_cooldown}))"
-        resume: "{logs}/{name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
-        folder_name: "{name}/cooldown_epoch_{cooldown_checkpoint}"
+        resume: "{logs}/{exp_name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
+        folder_name: "{exp_name}/cooldown_epoch_{cooldown_checkpoint}"
+        phase_params: "{cooldown_checkpoint}"
         mode:
             - train:
-                template: train.sbatch      
-                sbatch_script: "sbatch_scripts/const_lr/{name}_cooldown_epoch_{cooldown_checkpoint}_train.sbatch"
+                template: train.sbatch     
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_epoch_{cooldown_checkpoint}_train.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_train.out"
                 start_condition_cmd: "nc=`ls {resume}|wc -l`;echo $(( (nc) > 0 ))"
                 termination_cmd: 'let last=$(( {cooldown_checkpoint} + {epochs_cooldown} - 1 ));grep "Train Epoch: $last.*100%" {output_file}|wc -l'
             - eval:
                 template: eval.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{name}_cooldown_epoch_{cooldown_checkpoint}_eval.sbatch"
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_epoch_{cooldown_checkpoint}_eval.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_eval.out"
                 eval_nodes: 1
                 start_condition_cmd: "nc=`ls {logs}/{folder_name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{folder_name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
@@ -68,5 +70,5 @@ phase:
 dataset: 
     - datacomp:
         train_data: "/p/fastdata/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
-name: "{dataset}_{model}_ep{max_epochs}_lr{lr}_b1_{beta1}_b2_{beta2}_wd{wd}_w{warmup}_gc{grad_clip_norm}_n{nodes}_bs{batch_size}_sig{siglip}"
-full_name: "{name}_{phase}_{mode}"
+exp_name: "{dataset}_{model}_ep{max_epochs}_lr{lr}_b1_{beta1}_b2_{beta2}_wd{wd}_w{warmup}_gc{grad_clip_norm}_n{nodes}_bs{batch_size}_sig{siglip}"
+name: "{exp_name}_{phase}{phase_params}_{mode}"
