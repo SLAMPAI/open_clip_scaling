@@ -25,12 +25,18 @@ if [ "{siglip}" = "True" ]; then
 else
     SIGLIP=""
 fi
+# if pretrained
+if [ -n "{pretrained}" ]; then
+    PRETRAINED="--pretrained {pretrained}"
+else
+    PRETRAINED=""
+fi
 srun --cpu_bind=none,v --accel-bind=gn python -u open_clip/src/training/main.py \
     --save-frequency 1 \
     --zeroshot-frequency 1 \
     --train-data="{train_data}"  --dataset-type webdataset --dataset-resampled\
     --train-num-samples={train_num_samples} \
-    --batch-size {batch_size} $SIGLIP\
+    --batch-size {batch_size} $SIGLIP $PRETRAINED\
     --report-to=tensorboard \
     --epochs {epochs} \
     --workers=8 \
