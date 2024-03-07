@@ -10,6 +10,7 @@ time_minutes: 60
 grad_clip_norm: 1
 lr-scheduler: const
 logs: "logs/const_lr"
+resume: latest
 experiments:
     model: [ViT-B-32]
     nodes: 64
@@ -25,10 +26,10 @@ phase:
         lr_cooldown_end: 0.0
         lr_cooldown_power: 1.0
         epochs_cooldown: 0
-        resume: latest
         folder_name: "{exp_name}"
         epochs: "{max_epochs}"
         phase_params: ""
+        pretrained: ""
         mode:
             - train:
                 template: train.sbatch
@@ -50,7 +51,7 @@ phase:
         #cooldown_checkpoint: "eval(list(range(10,100,10)))"
         cooldown_checkpoint: [10, 20, 30, 40, 50, 60, 70, 80, 90]
         epochs: "$(({cooldown_checkpoint}+{epochs_cooldown}))"
-        resume: "{logs}/{exp_name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
+        pretrained: "{logs}/{exp_name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
         folder_name: "{exp_name}/cooldown_epoch_{cooldown_checkpoint}"
         phase_params: "{cooldown_checkpoint}"
         mode:
@@ -58,7 +59,7 @@ phase:
                 template: train.sbatch     
                 sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_epoch_{cooldown_checkpoint}_train.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_train.out"
-                start_condition_cmd: "nc=`ls {resume}|wc -l`;echo $(( (nc) > 0 ))"
+                start_condition_cmd: "nc=`ls {pretrained}|wc -l`;echo $(( (nc) > 0 ))"
                 termination_cmd: 'let last=$(( {cooldown_checkpoint} + {epochs_cooldown} - 1 ));grep "Train Epoch: $last.*100%" {output_file}|wc -l'
             - eval:
                 template: eval.sbatch
