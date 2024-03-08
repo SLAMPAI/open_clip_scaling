@@ -6,7 +6,7 @@ account: laionize
 beta1: 0.9
 beta2: 0.95
 wd: 0.2
-time_minutes: 60
+time_minutes: 360
 grad_clip_norm: 1
 lr-scheduler: const
 logs: "logs/const_lr"
@@ -14,7 +14,7 @@ resume: latest
 experiments:
     model: [ViT-B-32]
     nodes: 64
-    train_num_samples: 12_800_000  
+    train_num_samples: 128_000_000  
     lr: [1e-3]
     batch_size: 354
     siglip: false
@@ -48,22 +48,31 @@ phase:
         lr_cooldown_end: 0.0
         lr_cooldown_power: 1.0
         epochs_cooldown: 10
-        #cooldown_checkpoint: "eval(list(range(10,100,10)))"
-        cooldown_checkpoint: [10, 20, 30, 40, 50, 60, 70, 80, 90]
-        epochs: "$(({cooldown_checkpoint}+{epochs_cooldown}))"
+        samples_seen_scale:
+            - 1.28B:
+                epochs_cooldown: 2
+                cooldown_checkpoint: 8
+            - 3B:
+                epochs_cooldown: 5
+                cooldown_checkpoint: 18
+            - 12.8B:
+                epochs_cooldown: 25
+                cooldown_checkpoint: 75
+        #epochs: "$(({cooldown_checkpoint}+{epochs_cooldown}))"
+        epochs: "{epochs_cooldown}"
         pretrained: "{logs}/{exp_name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
-        folder_name: "{exp_name}/cooldown_epoch_{cooldown_checkpoint}"
-        phase_params: "{cooldown_checkpoint}"
+        folder_name: "{exp_name}/cooldown_s{samples_seen_scale}"
+        phase_params: "{samples_seen_scale}"
         mode:
             - train:
                 template: train.sbatch     
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_epoch_{cooldown_checkpoint}_train.sbatch"
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_train.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_train.out"
                 start_condition_cmd: "nc=`ls {pretrained}|wc -l`;echo $(( (nc) > 0 ))"
-                termination_cmd: 'let last=$(( {cooldown_checkpoint} + {epochs_cooldown} - 1 ));grep "Train Epoch: $last.*100%" {output_file}|wc -l'
+                termination_cmd: 'let last=$(( {epochs_cooldown} - 1 ));grep "Train Epoch: $last.*100%" {output_file}|wc -l'
             - eval:
                 template: eval.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_epoch_{cooldown_checkpoint}_eval.sbatch"
+                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_eval.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_eval.out"
                 eval_nodes: 1
                 start_condition_cmd: "nc=`ls {logs}/{folder_name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{folder_name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
