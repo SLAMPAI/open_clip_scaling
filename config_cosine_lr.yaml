@@ -13,6 +13,7 @@ lr_cooldown_power: 1.0
 epochs_cooldown: 0
 resume: latest
 time_minutes: 360
+pretrained : ""
 experiments:
   small:
     model_scale:
@@ -82,7 +83,7 @@ mode:
       # terminate training if we detect that last epoch is finished
       # e.g. if number of epochs is 100 and we find the expression Train Epoch: 99 .... 100%, we return 1
       # thus terminating the job.
-      termination_cmd: 'let last={epochs}-1;grep "Train Epoch: $last.*100%" {output_file}|wc -l'
+      termination_cmd: 'let last={epochs}-1;grep "Train Epoch: $last.*100%" {logs}/{folder_name}/out.log|wc -l'
   - eval:
       template: eval.sbatch
       sbatch_script: "sbatch_scripts/cosine_lr/{exp_name}_eval.sbatch"
