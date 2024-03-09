@@ -52,27 +52,27 @@ experiments:
             batch_size: 354
             siglip: [true, false]
         - 3B:
-            nodes: 128
+            nodes: 64
             train_num_samples: 100_000_000
             epochs: 30
             warmup: 500
-            lr: [1.5e-3]
+            lr: [1e-3]
             batch_size: 354
             siglip: [true, false]
         - 12.8B:
-            nodes: 128
+            nodes: 64
             train_num_samples: 128_000_000
             epochs: 100
             warmup: 1000
-            lr: [1.5e-3]
+            lr: [1e-3]
             batch_size: 354
             siglip: [true, false]
         - 34B:
-            nodes: 128
+            nodes: 64
             train_num_samples: 340_000_000
             epochs: 100
             warmup: 2000
-            lr: [1.5e-3]
+            lr: [1e-3]
             batch_size: 354
             siglip: [true, false]
 mode:
