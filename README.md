@@ -10,25 +10,5 @@ pip install clip_benchmark
 ```bash
 git clone https://github.com/SLAMPAI/open_clip_scaling
 cd open_clip_scaling
-git clone https://github.com/mlfoundations/open_clip
+git clone https://github.com/SLAMPAI/open_clip_all_at_once open_clip
 ```
-
-# How to run ?
-
-
-First, build sbatch files for each job:
-
-`autoexperiment build config.yaml`
-
-
-Check the sbatch scripts:
-
-`ls sbatch_scripts/`
-
-Then, run everything:
-
-`autoexperiment run config.yaml`
-
-Or, run a specific scale(s):
-
-`autoexperiment run config.yaml samples_seen_scale=12.8M,128M`
