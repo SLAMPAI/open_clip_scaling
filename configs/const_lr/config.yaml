@@ -9,17 +9,17 @@ wd: 0.2
 time_minutes: 360
 grad_clip_norm: 1
 lr-scheduler: const
-logs: "logs/const_lr"
+logs: "/p/fastdata/mmlaion/cherti1/open_clip_scaling/logs/const_lr"
 pretrained: ""
 experiments:
-    model: [ViT-B-32]
+    model: [ViT-S-32, ViT-M-32, ViT-S-16, ViT-B-32]
     nodes: 64
-    train_num_samples: 128_000_000  
-    lr: [1e-3]
+    train_num_samples: 12_800_000
+    lr: [2e-3, 1e-3]
     batch_size: 354
     siglip: false
-    max_epochs: 100
-    warmup: 500
+    max_epochs: 1000
+    warmup: 4000
 phase:
     - pretrain:
         lr_scheduler: const
@@ -32,13 +32,13 @@ phase:
         resume: latest
         mode:
             - train:
-                template: train.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_train.sbatch"
+                template: /p/project/laionize/cherti1/open_clip_all_at_once/configs/openclip/train.sbatch
+                sbatch_script: "/p/project/laionize/cherti1/open_clip_all_at_once/sbatch_scripts/const_lr/{exp_name}_train.sbatch"
                 output_file: "{logs}/{exp_name}/slurm_train.out"
                 termination_cmd: 'let last={epochs}-1;grep "Train Epoch: $last.*100%" {logs}/{folder_name}/out.log|wc -l'
             - eval:
-                template: eval.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_eval.sbatch"
+                template: /p/project/laionize/cherti1/open_clip_all_at_once/configs/openclip/eval.sbatch
+                sbatch_script: "/p/project/laionize/cherti1/open_clip_all_at_once/sbatch_scripts/const_lr/{exp_name}_eval.sbatch"
                 output_file: "{logs}/{exp_name}/slurm_eval.out"
                 eval_nodes: 1
                 start_condition_cmd: "nc=`ls {logs}/{exp_name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{exp_name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
@@ -47,33 +47,34 @@ phase:
         lr_scheduler: const-cooldown
         lr_cooldown_end: 0.0
         lr_cooldown_power: 1.0
-        epochs_cooldown: 10
         samples_seen_scale:
-            - 1.28B:
+            - 128M:
                 epochs_cooldown: 2
                 cooldown_checkpoint: 8
-            - 3B:
-                epochs_cooldown: 5
-                cooldown_checkpoint: 18
-            - 12.8B:
+            - 1.28B:
                 epochs_cooldown: 25
                 cooldown_checkpoint: 75
+            - 3B:
+                epochs_cooldown: 58
+                cooldown_checkpoint: 176
+            - 12.8B:
+                epochs_cooldown: 250
+                cooldown_checkpoint: 750
         epochs: "$(({cooldown_checkpoint}+{epochs_cooldown}))"
-        #epochs: "{epochs_cooldown}"
         checkpoint: "{logs}/{exp_name}/checkpoints/epoch_{cooldown_checkpoint}.pt"
         folder_name: "{exp_name}/cooldown_s{samples_seen_scale}"
         phase_params: "{samples_seen_scale}"
         mode:
             - train:
-                template: train.sbatch     
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_train.sbatch"
+                template: /p/project/laionize/cherti1/open_clip_all_at_once/configs/openclip/train.sbatch     
+                sbatch_script: "/p/project/laionize/cherti1/open_clip_all_at_once/sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_train.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_train.out"
                 start_condition_cmd: "nc=`ls {checkpoint}|wc -l`;echo $(( (nc) > 0 ))"
                 termination_cmd: 'let last=$(( {cooldown_checkpoint} + {epochs_cooldown} - 1 ));grep "Train Epoch: $last.*100%" {logs}/{folder_name}/out.log|wc -l'
                 resume: "$(if [ -f '{logs}/{folder_name}/checkpoints/epoch_latest.pt' ]; then echo 'latest'; else echo '{checkpoint}'; fi)"
             - eval:
-                template: eval.sbatch
-                sbatch_script: "sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_eval.sbatch"
+                template: /p/project/laionize/cherti1/open_clip_all_at_once/configs/openclip/eval.sbatch
+                sbatch_script: "/p/project/laionize/cherti1/open_clip_all_at_once/sbatch_scripts/const_lr/{exp_name}_cooldown_s{samples_seen_scale}_eval.sbatch"
                 output_file: "{logs}/{folder_name}/slurm_eval.out"
                 eval_nodes: 1
                 start_condition_cmd: "nc=`ls {logs}/{folder_name}/checkpoints/epoch_[0-9]*.pt|wc -l`;ne=`ls {logs}/{folder_name}/checkpoints/*.json|wc -l`;echo $(( (nc*2-ne) > 0 ))" # imagenet + coco = 2
