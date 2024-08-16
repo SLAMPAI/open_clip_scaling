@@ -69,6 +69,7 @@ def load_results(folder):
         samples_per_sec = get_samples_per_sec(out_log)
         gpus = int(params["world_size"])
         dic = {
+            'path': path,
             'model': params['model'],
             "pretrain_dataset": os.path.basename(path).split("_")[0],
             "downstream_dataset": data['dataset'],
@@ -107,26 +108,9 @@ folders = [folder for log_folder in log_folders for folder in glob(os.path.join(
 results = Parallel(n_jobs=-1)(delayed(load_results)(f)for f in folders)
 rows = [ri for r in results for ri in r]
 df = pd.DataFrame(rows)
-
-
-df["samples_seen_scale_simple"] = df.name.apply(lambda s:s.split("_")[1][1:])
-df["samples_seen_scale"] = df["samples_seen_scale_simple"]
-df["lr"] = df.name.apply(lambda s: next((float(part[len('lr'):]) for part in s.split('_') if part.startswith('lr')), None))
-
-df["warmup"] = df.name.apply(lambda s: next((int(part.split('_')[1]) if part.startswith('warmup_') else int(part[1:]) for part in s.split('_') if part.startswith('warmup_') or (part.startswith('w') and part[1:].isdigit())), None))
-
-df["model_simple"] = df["model"].apply(lambda s:s.replace("sg_cap_", "").replace("mammut_", "").replace("coca_", ""))
-
-df["name_wo_model"] = df.apply(lambda r:f"{r['lr']}_{r['samples_seen_scale_simple']}_{r['global_batch_size']}_{r['warmup']}", axis=1)
-df["namespace_model"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}", axis=1)
-df["model_simple_namespace"] = df.apply(lambda r:f"{r['model_simple']}_{r['namespace']}", axis=1)
-
-df["namespace_model_samples_seen_scale"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}_{r['samples_seen_scale']}", axis=1)
-
-df["name_wo_lr"] = df.name.apply(lambda n:"_".join([ni for ni in n.split("_") if "lr" not in ni]))
 df['name_epoch'] = df.apply(lambda r:f"{r['name']}{r['epoch']}", axis=1)
-df["downstream_dataset"] = df.downstream_dataset.apply(lambda s:s.replace("wds/", ""))
-"""
+
+
 rows = []
 for n in df.name_epoch.unique():
     sg = df[df.name_epoch==n]
@@ -138,17 +122,24 @@ for n in df.name_epoch.unique():
             "acc": sg.acc.mean(),
             "gflops_total": sg.gflops_total.mean(),
             "downstream_dataset": "sugar_crepe",
-            "samples_seen_scale_simple": sg.samples_seen_scale_simple.iloc[0],
-            "model_simple": sg.model.iloc[0].replace("sg_cap_", "").replace("mammut_", ""),
             "namespace": sg.namespace.iloc[0],
+            "task": sg.task.iloc[0],
             "model": sg.model.iloc[0],
-            "name_wo_lr": sg.name_wo_lr.iloc[0],
-            "lr": sg.lr.iloc[0],
             "epoch": sg.epoch.iloc[0],
             "total_epochs": sg.total_epochs.iloc[0]
         })
 new = pd.DataFrame(rows)
 df = pd.concat((df, new))
-"""
+df["samples_seen_scale_simple"] = df.name.apply(lambda s:s.split("_")[1][1:])
+df["samples_seen_scale"] = df["samples_seen_scale_simple"]
+df["lr"] = df.name.apply(lambda s: next((float(part[len('lr'):]) for part in s.split('_') if part.startswith('lr')), None))
+df["warmup"] = df.name.apply(lambda s: next((int(part.split('_')[1]) if part.startswith('warmup_') else int(part[1:]) for part in s.split('_') if part.startswith('warmup_') or (part.startswith('w') and part[1:].isdigit())), None))
+df["model_simple"] = df["model"].apply(lambda s:s.replace("sg_cap_", "").replace("mammut_", "").replace("coca_", ""))
+df["name_wo_model"] = df.apply(lambda r:f"{r['lr']}_{r['samples_seen_scale_simple']}_{r['global_batch_size']}_{r['warmup']}", axis=1)
+df["namespace_model"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}", axis=1)
+df["model_simple_namespace"] = df.apply(lambda r:f"{r['model_simple']}_{r['namespace']}", axis=1)
+df["namespace_model_samples_seen_scale"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}_{r['samples_seen_scale']}", axis=1)
+df["name_wo_lr"] = df.name.apply(lambda n:"_".join([ni for ni in n.split("_") if "lr" not in ni]))
+df["downstream_dataset"] = df.downstream_dataset.apply(lambda s:s.replace("wds/", ""))
 
 df.to_csv("results.csv", index=False)
