@@ -1,10 +1,14 @@
+
 import pandas as pd
 from glob import glob
+import re
 import sys
 import json
 import os
 import numpy as np
 import re
+from joblib import Parallel, delayed
+
 
 def get_samples_per_sec(path):
     all_vals = []
@@ -33,6 +37,26 @@ def get_params(out_file):
                 pass
     return dic
 
+def get_loss(out_file):
+    contrasive_losses = []
+    caption_losses = []
+    with open(out_file, 'r') as file:
+        for line in file:
+            if 'Train Epoch:' in line and 'Loss:' in line:
+                match = re.search(r'Contrastive_loss: (\d+\.\d+) \((\d+\.\d+)\)', line)
+                if match:
+                    current_loss, average_loss = map(float, match.groups())
+                    contrasive_losses.append(average_loss)    
+                match = re.search(r'Caption_loss: (\d+\.\d+) \((\d+\.\d+)\)', line)
+                if match:
+                    current_loss, average_loss = map(float, match.groups())
+                    caption_losses.append(average_loss)    
+
+    return {
+        "contrastive_loss": contrasive_losses[-1] if len(contrasive_losses) else None,
+        "caption_loss": caption_losses[-1] if len(caption_losses) else None
+    }
+
 def human(v):
     if v < 10 ** 6:
         return str(v)
@@ -50,7 +74,6 @@ model_profile_cap_mammut =  pd.read_csv("/p/project/laionize/cherti1/open_clip_a
 model_profile.to_csv("model_profile.csv", index=False)
 model_profile  = model_profile.set_index("model")
 
-from joblib import Parallel, delayed
 def load_results(folder):
     paths = glob(os.path.join(folder, "*.json"))
     results = []
@@ -67,7 +90,19 @@ def load_results(folder):
         params = get_params(out_log)
         model = params["model"]
         samples_per_sec = get_samples_per_sec(out_log)
+        losses = get_loss(out_log)
         gpus = int(params["world_size"])
+        name = os.path.basename(model_folder)
+        if "mammut" in name:
+            if "cap_mammut" in path:
+                ns = "cap"
+            else:
+                ns = "mammut"
+        elif "coca" in name:
+            ns = "coca"
+        else:
+            ns = "clip"
+        mp = model_profile_cap_mammut if ns == "cap_mammut" else model_profile
         dic = {
             'path': path,
             'model': params['model'],
@@ -75,8 +110,8 @@ def load_results(folder):
             "downstream_dataset": data['dataset'],
             'epoch': int(re.search(r"epoch\_([0-9]+).pt", path).groups(1)[0]),
             "total_epochs": int(params['epochs']),
-            "name": os.path.basename(model_folder),
-            "gflops_total": model_profile.loc[model].gflops * int(params["epochs"]) * int(params["train_num_samples"]),
+            "name": name,
+            "gflops_total":  mp.loc[model].gflops * int(params["epochs"]) * int(params["train_num_samples"]),
             "samples_per_sec": samples_per_sec,
             "samples_per_sec_per_gpu": samples_per_sec / gpus,
             "global_batch_size": int(params["batch_size"]) * gpus,
@@ -85,15 +120,7 @@ def load_results(folder):
             "total_steps": (int(params["epochs"]) * int(params["train_num_samples"]) ) // ( int(params["batch_size"]) * gpus),
             "task": data["task"]
         }
-        if "mammut" in dic['name']:
-            if "cap_mammut" in path:
-                ns = "cap"
-            else:
-                ns = "mammut"
-        elif "coca" in dic['name']:
-            ns = "coca"
-        else:
-            ns = "clip"
+        dic.update(losses)
         dic["namespace"] = ns
         dic["eval_type"] = "log_likelihood" if data["task"].startswith("generative") else "similarity"
         dic["gpu_hours"] = dic["gpus"] * dic["training_time_hours"]
