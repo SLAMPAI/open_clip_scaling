@@ -1,5 +1,7 @@
 
 import pandas as pd
+# import fireducks.pandas as pd
+
 from glob import glob
 import re
 import sys
@@ -106,7 +108,7 @@ def load_results(folder):
         dic = {
             'path': path,
             'model': params['model'],
-            "pretrain_dataset": os.path.basename(path).split("_")[0],
+            "pretrain_dataset": params["train_data"],
             "downstream_dataset": data['dataset'],
             'epoch': int(re.search(r"epoch\_([0-9]+).pt", path).groups(1)[0]),
             "total_epochs": int(params['epochs']),
@@ -118,7 +120,8 @@ def load_results(folder):
             "training_time_hours": ((1/samples_per_sec) * int(params["epochs"]) * int(params["train_num_samples"]) ) / 3600,
             "gpus": gpus,
             "total_steps": (int(params["epochs"]) * int(params["train_num_samples"]) ) // ( int(params["batch_size"]) * gpus),
-            "task": data["task"]
+            "task": data["task"],
+            "local_batch_size": int(params["batch_size"])
         }
         dic.update(losses)
         dic["namespace"] = ns
