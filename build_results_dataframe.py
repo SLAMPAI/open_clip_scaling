@@ -1,10 +1,7 @@
 
 import pandas as pd
-# import fireducks.pandas as pd
-
 from glob import glob
 import re
-import sys
 import json
 import os
 import numpy as np
@@ -59,13 +56,6 @@ def get_loss(out_file):
         "caption_loss": caption_losses[-1] if len(caption_losses) else None
     }
 
-def human(v):
-    if v < 10 ** 6:
-        return str(v)
-    elif v > 10**6 and v < 10**9:
-        return (str(v/10**6)+"M").replace(".0M", "M")
-    elif v > 10**9:
-        return (str(v/10**9)+"B").replace(".0B", "B")
 
 
 model_profile = pd.concat([
@@ -112,6 +102,7 @@ def load_results(folder):
             "downstream_dataset": data['dataset'],
             'epoch': int(re.search(r"epoch\_([0-9]+).pt", path).groups(1)[0]),
             "total_epochs": int(params['epochs']),
+            "total_samples_seen": int(params["train_num_samples"]) * int(params["epochs"]),
             "name": name,
             "gflops_total":  mp.loc[model].gflops * int(params["epochs"]) * int(params["train_num_samples"]),
             "samples_per_sec": samples_per_sec,
@@ -121,7 +112,10 @@ def load_results(folder):
             "gpus": gpus,
             "total_steps": (int(params["epochs"]) * int(params["train_num_samples"]) ) // ( int(params["batch_size"]) * gpus),
             "task": data["task"],
-            "local_batch_size": int(params["batch_size"])
+            "local_batch_size": int(params["batch_size"]),
+            "warmup": int(params["warmup"]),
+            "lr": float(params["lr"]),
+            "lr_scheduler": params["lr_scheduler"],
         }
         dic.update(losses)
         dic["namespace"] = ns
@@ -131,10 +125,12 @@ def load_results(folder):
         results.append(dic)
     return (results)
 log_folders = [
-    "/p/home/jusers/cherti1/juwels/laionize/cherti1/open_clip_scaling/logs/cap_mammut",
-    "/p/data1/mmlaion/experiments/autoexp/jjitsev/logs"
+    "/p/project1/laionize/cherti1/open_clip_scaling/logs/cap_mammut",
+    "/p/data1/mmlaion/experiments/autoexp/jjitsev/logs",
+    "/p/data1/mmlaion/cherti1/open_clip_scaling/logs/const_lr"
+    
 ]
-folders = [folder for log_folder in log_folders for folder in glob(os.path.join(log_folder, "**", "checkpoints"))]
+folders = [folder for log_folder in log_folders for folder in glob(os.path.join(log_folder, "**", "checkpoints"), recursive=True)]
 results = Parallel(n_jobs=-1)(delayed(load_results)(f)for f in folders)
 rows = [ri for r in results for ri in r]
 df = pd.DataFrame(rows)
@@ -143,33 +139,16 @@ df['name_epoch'] = df.apply(lambda r:f"{r['name']}{r['epoch']}", axis=1)
 
 rows = []
 for n in df.name_epoch.unique():
-    sg = df[df.name_epoch==n]
-    sg = sg[sg.downstream_dataset.str.startswith("sugar_crepe")]
-    if len(sg) == 7:
-        rows.append({
-            "name": sg.name.iloc[0],
-            "epoch": sg.epoch.iloc[0],
-            "acc": sg.acc.mean(),
-            "gflops_total": sg.gflops_total.mean(),
-            "downstream_dataset": "sugar_crepe",
-            "namespace": sg.namespace.iloc[0],
-            "task": sg.task.iloc[0],
-            "model": sg.model.iloc[0],
-            "epoch": sg.epoch.iloc[0],
-            "total_epochs": sg.total_epochs.iloc[0]
-        })
+    group = df[df.name_epoch==n]
+    group = group[group.downstream_dataset.str.startswith("sugar_crepe")]
+    if len(group) == 7:
+        dic = group.to_dict(orient="records")[0]
+        dic["acc"] = group.acc.mean()
+        dic["gflops_total"] = group.gflops_total.mean()
+        rows.append(dic)
 new = pd.DataFrame(rows)
 df = pd.concat((df, new))
-df["samples_seen_scale_simple"] = df.name.apply(lambda s:s.split("_")[1][1:])
-df["samples_seen_scale"] = df["samples_seen_scale_simple"]
-df["lr"] = df.name.apply(lambda s: next((float(part[len('lr'):]) for part in s.split('_') if part.startswith('lr')), None))
-df["warmup"] = df.name.apply(lambda s: next((int(part.split('_')[1]) if part.startswith('warmup_') else int(part[1:]) for part in s.split('_') if part.startswith('warmup_') or (part.startswith('w') and part[1:].isdigit())), None))
 df["model_simple"] = df["model"].apply(lambda s:s.replace("sg_cap_", "").replace("mammut_", "").replace("coca_", ""))
-df["name_wo_model"] = df.apply(lambda r:f"{r['lr']}_{r['samples_seen_scale_simple']}_{r['global_batch_size']}_{r['warmup']}", axis=1)
-df["namespace_model"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}", axis=1)
 df["model_simple_namespace"] = df.apply(lambda r:f"{r['model_simple']}_{r['namespace']}", axis=1)
-df["namespace_model_samples_seen_scale"] = df.apply(lambda r:f"{r['model']}_{r['namespace']}_{r['samples_seen_scale']}", axis=1)
-df["name_wo_lr"] = df.name.apply(lambda n:"_".join([ni for ni in n.split("_") if "lr" not in ni]))
 df["downstream_dataset"] = df.downstream_dataset.apply(lambda s:s.replace("wds/", ""))
-
 df.to_csv("results.csv", index=False)
