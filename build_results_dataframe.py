@@ -103,6 +103,7 @@ def load_results(folder):
         dic = {
             "name": name,
             'path': path,
+            "model_folder": model_folder,
             'model': params['model'],
             "pretrain_dataset": get_pretrain_dataset(params["train_data"]),
             "downstream_dataset": data['dataset'],
@@ -111,14 +112,8 @@ def load_results(folder):
             "steps":  (epoch) * int(params["train_num_samples"]) // ( int(params["batch_size"]) * gpus),
             "samples_seen_per_epoch": int(params["train_num_samples"]),                        
             "gflops": mp.loc[model].gflops * epoch * int(params["train_num_samples"]),            
-            "training_time_hours": ((1/samples_per_sec) * epoch * int(params["train_num_samples"]) ) / 3600,
-            
+            "training_time_hours": ((1/samples_per_sec) * epoch * int(params["train_num_samples"]) ) / 3600,            
             "total_epochs": int(params['epochs']),
-            #"total_samples_seen": int(params["train_num_samples"]) * int(params["epochs"]),
-            #"total_gflops": mp.loc[model].gflops * int(params["epochs"]) * int(params["train_num_samples"]),            
-            #"training_time_hours": ((1/samples_per_sec) * int(params["epochs"]) * int(params["train_num_samples"]) ) / 3600,
-            # "total_steps": (int(params["epochs"]) * int(params["train_num_samples"]) ) // ( int(params["batch_size"]) * gpus),
-            
             "samples_per_sec": samples_per_sec,
             "samples_per_sec_per_gpu": samples_per_sec / gpus,
             "global_batch_size": int(params["batch_size"]) * gpus,            
@@ -150,8 +145,71 @@ folders = [
 results = Parallel(n_jobs=-1)(delayed(load_results)(f)for f in folders)
 rows = [ri for r in results for ri in r]
 df = pd.DataFrame(rows)
-df['name_epoch'] = df.apply(lambda r:f"{r['name']}{r['epoch']}", axis=1)
+df["name_epoch"] = df["name"] + "_" + df["epoch"].astype(str)
+df["model_folder_epoch"] = df.model_folder + "_epoch_" + df.epoch.astype(str)
 print("Done loading results")
+
+# covers the case where same downream dataset has been evaluated several times with different filenames
+df = df.drop_duplicates(subset=["model_folder_epoch", "downstream_dataset"]) 
+
+suites = {
+    "datacomp_classification": {
+        "metric": "acc1",
+        "datasets":[
+            "imagenet1k",
+            "wds/wds_wilds-fmow_test",
+            "wds/wds_vtab-pcam_test",
+            "wds/wds_geode_test",
+            "wds/wds_voc2007_test",
+            "wds/wds_renderedsst2_test",
+            "wds/wds_gtsrb_test",
+            "wds/wds_food101_test",
+            "wds/wds_imagenet-a_test",
+            "wds/wds_fgvc_aircraft_test",
+            "wds/wds_imagenet-r_test",
+            "wds/wds_wilds-iwildcam_test",
+            "wds/wds_vtab-flowers_test",
+            "wds/wds_country211_test",
+            "wds/wds_vtab-cifar100_test",
+            "wds/wds_mnist_test",
+            "wds/wds_sun397_test",
+            "wds/wds_imagenetv2_test",
+            "wds/wds_stl10_test",
+            "wds/wds_cars_test",
+            "wds/wds_objectnet_test",
+            "wds/wds_vtab-clevr_count_all_test",
+            "wds/wds_vtab-kitti_closest_vehicle_distance_test",
+            "wds/wds_cifar10_test",
+            "wds/wds_dollar_street_test",
+            "wds/wds_vtab-dtd_test",
+            "wds/wds_imagenet-o_test",
+            "wds/wds_vtab-resisc45_test",
+            "wds/wds_imagenet_sketch_test",
+            "wds/wds_vtab-eurosat_test",
+            "wds/wds_wilds-camelyon17_test",
+            "wds/wds_vtab-caltech101_test",
+            "wds/wds_vtab-svhn_test",
+            "wds/wds_vtab-clevr_closest_object_distance_test",
+            "wds/wds_vtab-pets_test"
+        ],
+    },
+    "sugar_crepe": {
+        "metric": "acc",
+        "datasets":[
+            "sugar_crepe/swap_obj",
+            "sugar_crepe/swap_att",
+            "sugar_crepe/add_att",
+            "sugar_crepe/add_obj",
+            "sugar_crepe/replace_att",
+            "sugar_crepe/replace_obj",
+            "sugar_crepe/replace_rel"
+        ],
+    }
+}
+
+
+"""
+
 rows = []
 df_sugar_crepe = df[df.downstream_dataset.str.startswith("sugar_crepe")]
 for n in df_sugar_crepe.name_epoch.unique():
@@ -162,8 +220,42 @@ for n in df_sugar_crepe.name_epoch.unique():
         dic["downstream_dataset"] = "sugar_crepe"
         rows.append(dic)
 new = pd.DataFrame(rows)
+
+"""
+
+"""
+
+for suite, datasets in suites.items():
+    rows = []
+    for n in df.name_epoch.unique():
+        group = df[(df.name_epoch==n) & (df.downstream_dataset.isin(datasets))]
+        if len(group) == len(datasets):
+            dic = group.to_dict(orient="records")[0]
+            dic["acc"] = group.acc.mean()
+            dic["downstream_dataset"] = suite
+            rows.append(dic)
+
+new = pd.DataFrame(rows)
 df = pd.concat((df, new))
-print("Added sugar crepe avg")
+"""
+df.to_csv("intermediate.csv", index=False)
+new_dfs = []
+for suite_name, suite in suites.items():
+    datasets = suite["datasets"]
+    metric = suite["metric"]
+    d = df[df.downstream_dataset.isin(datasets)]
+    d = d.groupby("model_folder_epoch").filter(lambda group: len(group) == len(datasets))
+    if len(d):
+        aggs = {}
+        for col in set(df.columns) - set(["model_folder_epoch"]):
+            aggs[col] = "first"
+        aggs[metric] = "mean"
+        d = d.groupby("model_folder_epoch").agg(aggs)
+        d = d.reset_index()
+        d["downstream_dataset"] = suite_name
+        new_dfs.append(d)
+df = pd.concat([df] + new_dfs)
+
 df["model_simple"] = df["model"].apply(lambda s:s.replace("sg_cap_", "").replace("mammut_", "").replace("coca_", ""))
 df["model_simple_namespace"] = df.apply(lambda r:f"{r['model_simple']}_{r['namespace']}", axis=1)
 df["downstream_dataset"] = df.downstream_dataset.apply(lambda s:s.replace("wds/", ""))
@@ -185,8 +277,9 @@ scales = [
 scales_numeric = [samples_seen_from_str(s) for s in scales]
 def human(v):
     # check closest from `scales`
-    if v <= np.max(scales_numeric):
-        idx = np.abs(np.array(scales_numeric) - v).argmin()
+    dist = np.abs(np.array(scales_numeric) - v)
+    if dist.min() < 1e9:
+        idx = dist.argmin()
         return scales[idx]
     else:
         if v < 10 ** 6:
