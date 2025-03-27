@@ -48,8 +48,8 @@ def parse_out_log(path):
     
     samples_per_sec = np.mean(all_vals[1:]) if len(all_vals) > 1 else (all_vals[0] if all_vals else None)
     losses = {
-        "contrastive_loss": contrastive_losses[-1] if contrastive_losses else None,
-        "caption_loss": caption_losses[-1] if caption_losses else None
+        "train_contrastive_loss": contrastive_losses[-1] if contrastive_losses else None,
+        "train_caption_loss": caption_losses[-1] if caption_losses else None
     }
     return params, samples_per_sec, losses
 
@@ -206,39 +206,6 @@ suites = {
         ],
     }
 }
-
-
-"""
-
-rows = []
-df_sugar_crepe = df[df.downstream_dataset.str.startswith("sugar_crepe")]
-for n in df_sugar_crepe.name_epoch.unique():
-    group = df_sugar_crepe[df_sugar_crepe.name_epoch==n]
-    if len(group) == 7:
-        dic = group.to_dict(orient="records")[0]
-        dic["acc"] = group.acc.mean()
-        dic["downstream_dataset"] = "sugar_crepe"
-        rows.append(dic)
-new = pd.DataFrame(rows)
-
-"""
-
-"""
-
-for suite, datasets in suites.items():
-    rows = []
-    for n in df.name_epoch.unique():
-        group = df[(df.name_epoch==n) & (df.downstream_dataset.isin(datasets))]
-        if len(group) == len(datasets):
-            dic = group.to_dict(orient="records")[0]
-            dic["acc"] = group.acc.mean()
-            dic["downstream_dataset"] = suite
-            rows.append(dic)
-
-new = pd.DataFrame(rows)
-df = pd.concat((df, new))
-"""
-df.to_csv("intermediate.csv", index=False)
 new_dfs = []
 for suite_name, suite in suites.items():
     datasets = suite["datasets"]
