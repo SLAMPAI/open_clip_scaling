@@ -2,7 +2,7 @@ job_id_regexp: "Job Id:(\\d+)"
 cmd: "sbatch {sbatch_script}"
 check_interval_secs: 600
 partition: booster
-account: laionize
+account: transfernetx
 beta1: 0.9
 beta2: 0.95
 wd: 0.2
@@ -12,7 +12,7 @@ lr-scheduler: const
 logs: "/p/data1/mmlaion/cherti1/open_clip_scaling/logs/const_lr"
 pretrained: ""
 experiments:
-    model: [ViT-S-32, ViT-M-32, ViT-S-16, ViT-B-32]
+    model: [ViT-S-32-alt, ViT-S-32, ViT-M-32, ViT-M-32-alt, ViT-S-16, ViT-S-16-alt, ViT-B-32, ViT-M-16, ViT-M-16-alt, ViT-B-16, ViT-L-14, ViT-H-14]
     nodes: 64
     train_num_samples: 12_800_000
     lr: [2e-3, 1e-3]
@@ -81,6 +81,6 @@ phase:
                 termination_cmd: "ne=`ls {logs}/{folder_name}/checkpoints/*.json|wc -l`;echo $(( (ne) == {epochs_cooldown}*2 ))" # num of jsons = (num epochs) * (imagenet + coco = 2)
 dataset: 
     - datacomp:
-        train_data: "/p/data2/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
+        train_data: "/p/data1/mmlaion/datacomp/datacomp_1B/flat/{0000000..0139827}.tar"
 exp_name: "{dataset}_{model}_ep{max_epochs}_lr{lr}_b1_{beta1}_b2_{beta2}_wd{wd}_w{warmup}_gc{grad_clip_norm}_n{nodes}_bs{batch_size}_sig{siglip}"
 name: "{exp_name}_{phase}{phase_params}_{mode}"

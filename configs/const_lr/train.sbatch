@@ -3,7 +3,7 @@
 #SBATCH --nodes={nodes}
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=4
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
 #SBATCH --time={time_minutes}
 #SBATCH --partition={partition}
 #SBATCH --output={output_file}
@@ -18,7 +18,7 @@ export MASTER_PORT=12802
 master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_ADDR=$master_addr"i"
 echo "MASTER_ADDR="$MASTER_ADDR
-export PYTHONPATH="$PYTHONPATH:$PWD/src"
+export PYTHONPATH="$PYTHONPATH:$PWD/open_clip/src"
 # if siglip is true, "--siglip", else ""
 if [ "{siglip}" = "True" ]; then
     SIGLIP="--siglip"
@@ -31,7 +31,7 @@ if [ -n "{pretrained}" ]; then
 else
     PRETRAINED=""
 fi
-srun --cpu_bind=none,v --accel-bind=gn python -u src/training/main.py \
+srun --cpu_bind=none,v --accel-bind=gn --cpus-per-task=12 python -u open_clip/src/open_clip_train/main.py \
     --save-frequency 1 \
     --zeroshot-frequency 1 \
     --train-data="{train_data}"  --dataset-type webdataset --dataset-resampled\
