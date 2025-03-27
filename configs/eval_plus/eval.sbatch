@@ -19,4 +19,4 @@ export MASTER_ADDR=$master_addr"i"
 echo "MASTER_ADDR="$MASTER_ADDR
 export OPEN_CLIP_PATH=/p/project/laionize/cherti1/open_clip_scaling/open_clip
 export PYTHONPATH="$PYTHONPATH:$OPEN_CLIP_PATH/src"
-srun --cpu_bind=v --cpus-per-task=12 clip_benchmark  eval --model {model} --pretrained {folder_name}/checkpoints/epoch_[0-9]*.pt --dataset {dataset} --dataset_root '{dataset_root}/{{dataset}}' --output '{folder_name}/checkpoints/{suite_name}_{{dataset}}_{{pretrained}}_{{model}}_{{language}}_{{task}}.json' --skip_existing  --task {task}  --batch_size {batch_size} --prompt_batch_size {prompt_batch_size} {distributed}
+srun --cpu_bind=v --cpus-per-task=12 clip_benchmark  eval --model {model} --pretrained {folder_name}/checkpoints/epoch_[0-9]*.pt --dataset {dataset} --dataset_root '{dataset_root}/{{dataset}}' --output '{folder_name}/checkpoints/eval_plus_{suite_name}_{{dataset}}_{{pretrained}}_{{model}}_{{language}}_{{task}}.json' --skip_existing  --task {task}  --batch_size {batch_size} --prompt_batch_size {prompt_batch_size} {distributed}
